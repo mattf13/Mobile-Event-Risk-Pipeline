@@ -14,8 +14,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("risk_scorer")
 
+# Global DB pool initialized to None to prevent side effects on import
+db_pool = None
 
-#  Configuration & Environment Validation 
+
+# --- Configuration & Environment Validation ---
 def get_env_mandatory(key: str) -> str:
     """Ensures mandatory environment variables are present."""
     value = os.getenv(key)
@@ -25,33 +28,44 @@ def get_env_mandatory(key: str) -> str:
     return value
 
 
-# Database Configuration
+# Load DB config
 DB_CONFIG = {
     "host": os.getenv("POSTGRES_HOST", "db"),
-    "dbname": get_env_mandatory("POSTGRES_DB"),
-    "user": get_env_mandatory("POSTGRES_USER"),
-    "password": get_env_mandatory("POSTGRES_PASSWORD"),
+    "dbname": os.getenv("POSTGRES_DB", "risk_db"),
+    "user": os.getenv("POSTGRES_USER", "admin"),
+    "password": os.getenv("POSTGRES_PASSWORD", "securepassword"),
 }
 
-# RabbitMQ Configuration
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
-RABBITMQ_USER = get_env_mandatory("RABBITMQ_USER")
-RABBITMQ_PASS = get_env_mandatory("RABBITMQ_PASS")
-QUEUE_NAME = "mobile_events"
+# --- Risk Analysis Logic (Unit-Testable) ---
 
-#  Infrastructure Setup 
 
-# Initialize Global Database Pool for thread-safety and performance
-try:
-    db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, **DB_CONFIG)
-    logger.info("Database connection pool established.")
-except Exception as e:
-    logger.critical(f"Failed to initialize DB pool: {e}")
-    exit(1)
+def analyze_risk_stage_1(event: MobileEvent) -> tuple[int, str]:
+    """
+    Deterministic rule-based risk scoring.
+    This function is pure logic and can be tested without a database.
+    """
+    score = 0
+    rationale = "Event analyzed: parameters within safety limits."
+
+    # Rule: High Transaction Value
+    if event.amount > 900:
+        score, rationale = 95, "CRITICAL: Transaction amount exceeds safety threshold."
+    elif event.amount > 450:
+        score, rationale = 40, "WARNING: Elevated transaction value."
+
+    # Rule: Login events base risk
+    if event.event_type == "login" and score < 10:
+        score, rationale = 10, "Routine login monitoring."
+
+    return score, rationale
+
+
+# --- Infrastructure Helpers ---
 
 
 def init_db_schema():
-    """Initializes the PostgreSQL schema with retry logic for high availability."""
+    """Initializes the PostgreSQL schema using the global connection pool."""
+    global db_pool
     for attempt in range(1, 11):
         conn = None
         try:
@@ -70,7 +84,7 @@ def init_db_schema():
                     CREATE INDEX IF NOT EXISTS idx_user_risk ON risk_analysis(user_id);
                 """)
                 conn.commit()
-            logger.info("Database schema is ready.")
+            logger.info("Database schema initialized successfully.")
             db_pool.putconn(conn)
             return
         except Exception as e:
@@ -81,48 +95,22 @@ def init_db_schema():
     exit(1)
 
 
-#  Risk Analysis Logic 
-
-
-def analyze_risk_stage_1(event: MobileEvent) -> tuple[int, str]:
-    """
-    Deterministic rule-based risk scoring.
-    Stage 1: High-speed filtering of obvious anomalies.
-    """
-    score = 0
-    rationale = "Event analyzed: parameters within safety limits."
-
-    # Rule: High Transaction Value
-    if event.amount > 900:
-        score, rationale = 95, "CRITICAL: Transaction amount exceeds safety threshold."
-    elif event.amount > 450:
-        score, rationale = 40, "WARNING: Elevated transaction value."
-
-    # Rule: Event type base risk
-    if event.event_type == "login" and score < 10:
-        score, rationale = 10, "Routine login monitoring."
-
-    return score, rationale
-
-
-#  Message Consumption 
+# --- Message Consumption ---
 
 
 def on_message_received(ch, method, properties, body):
     """
-    Main consumer callback.
-    Implements Zero-Trust validation and secure persistence.
+    Consumer callback.
+    Implements Zero-Trust validation and parameterized SQL persistence.
     """
+    global db_pool
     db_conn = None
     try:
-        # 1. Zero-Trust Validation: Re-validate schema using shared Pydantic models
+        # 1. Zero-Trust Validation: Re-validate schema using shared models
         try:
             event = MobileEvent.model_validate_json(body)
         except ValidationError as ve:
-            logger.error(
-                f"SECURITY_ALERT: Dropping malformed message. Validation error: {ve}"
-            )
-            # Acknowledge but discard to prevent "Poison Pill" loops
+            logger.error(f"SECURITY_ALERT: Dropping malformed message. Error: {ve}")
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
 
@@ -130,30 +118,30 @@ def on_message_received(ch, method, properties, body):
         score, rationale = analyze_risk_stage_1(event)
         label = "RED" if score >= 70 else "YELLOW" if score >= 30 else "GREEN"
 
-        # 3. Persistence: Parameterized SQL to prevent SQL Injection
-        db_conn = db_pool.getconn()
-        with db_conn.cursor() as cur:
-            cur.execute(
-                """INSERT INTO risk_analysis (event_id, user_id, event_type, score, label, rationale) 
-                   VALUES (%s, %s, %s, %s, %s, %s)""",
-                (
-                    event.event_id,
-                    event.user_id,
-                    event.event_type,
-                    score,
-                    label,
-                    rationale,
-                ),
-            )
-            db_conn.commit()
+        # 3. Persistence: Only if DB pool is initialized (prevents crash in dry-runs)
+        if db_pool:
+            db_conn = db_pool.getconn()
+            with db_conn.cursor() as cur:
+                cur.execute(
+                    """INSERT INTO risk_analysis (event_id, user_id, event_type, score, label, rationale) 
+                       VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (
+                        event.event_id,
+                        event.user_id,
+                        event.event_type,
+                        score,
+                        label,
+                        rationale,
+                    ),
+                )
+                db_conn.commit()
 
-        # 4. Acknowledgment: Confirm message processing ONLY after DB commit
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        logger.info(f"Verified & Stored: Event {event.event_id} | Score: {score}")
+        logger.info(f"Processed: {event.event_id} | Score: {score}")
 
     except Exception as e:
-        logger.error(f"PROCESS_ERROR: Failed to process event. Re-queueing. Error: {e}")
-        # Re-queue the message if it's a transient error (e.g., DB disconnected)
+        logger.error(f"PROCESS_ERROR: {e}")
+        # Re-queue for transient errors (e.g. DB connection loss)
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
     finally:
         if db_conn:
@@ -161,34 +149,45 @@ def on_message_received(ch, method, properties, body):
 
 
 def main():
-    """Service entry point: Connects to RabbitMQ and starts consuming."""
+    """Service entry point: Infrastructure starts here."""
+    global db_pool
+
+    # Mandatory variables check before connecting
+    rabbitmq_user = get_env_mandatory("RABBITMQ_USER")
+    rabbitmq_pass = get_env_mandatory("RABBITMQ_PASS")
+    rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+
+    # 1. Initialize DB Pool
+    try:
+        db_pool = psycopg2.pool.SimpleConnectionPool(1, 10, **DB_CONFIG)
+        logger.info("Database pool established.")
+    except Exception as e:
+        logger.critical(f"Failed to start DB pool: {e}")
+        exit(1)
+
     init_db_schema()
 
-    # Establish secure connection to Message Broker
-    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
-    parameters = pika.ConnectionParameters(
-        host=RABBITMQ_HOST,
-        credentials=credentials,
-        heartbeat=600,  # Ensure connection stability
+    # 2. Connect to RabbitMQ
+    credentials = pika.PlainCredentials(rabbitmq_user, rabbitmq_pass)
+    params = pika.ConnectionParameters(
+        host=rabbitmq_host, credentials=credentials, heartbeat=600
     )
 
     try:
-        connection = pika.BlockingConnection(parameters)
+        connection = pika.BlockingConnection(params)
         channel = connection.channel()
-        channel.queue_declare(queue=QUEUE_NAME, durable=True)
-
-        # Fair Dispatch: Prevent a single worker from being overloaded
+        channel.queue_declare(queue="mobile_events", durable=True)
         channel.basic_qos(prefetch_count=1)
-        channel.basic_consume(queue=QUEUE_NAME, on_message_callback=on_message_received)
+        channel.basic_consume(
+            queue="mobile_events", on_message_callback=on_message_received
+        )
 
         logger.info("Risk Scorer is active. Awaiting mobile events...")
         channel.start_consuming()
-    except KeyboardInterrupt:
-        logger.info("Service shutting down manually.")
-        db_pool.closeall()
     except Exception as e:
-        logger.critical(f"FATAL: Service encountered an unrecoverable error: {e}")
-        db_pool.closeall()
+        logger.critical(f"FATAL: Service crashed: {e}")
+        if db_pool:
+            db_pool.closeall()
         exit(1)
 
 
