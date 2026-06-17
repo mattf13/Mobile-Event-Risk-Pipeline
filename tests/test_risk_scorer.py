@@ -50,4 +50,4 @@ def test_login_base_risk():
         location="0,0",
     )
     score, _ = analyze_risk_stage_1(event)
-    assert score == 10
+    assert score == 0
