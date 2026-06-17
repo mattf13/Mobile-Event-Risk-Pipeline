@@ -18,6 +18,3 @@ ENV/
 # IDEs
 .vscode/
 .idea/
-
-# github
-.github/
