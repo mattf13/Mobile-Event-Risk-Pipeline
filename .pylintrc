@@ -1,0 +1,14 @@
+[MASTER]
+ignore=shared
+
+[MESSAGES CONTROL]
+# Disable checks that are too pedantic for this type of microservice
+disable=
+    C0114, # missing-module-docstring
+    C0115, # missing-class-docstring
+    C0116, # missing-function-docstring
+    R0903, # too-few-public-methods
+    W0703  # broad-except (Standard for top-level consumers)
+
+[FORMAT]
+max-line-length=100

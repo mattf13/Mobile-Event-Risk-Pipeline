@@ -1,6 +1,6 @@
 import pytest
-from services.risk_scorer.main import analyze_risk_stage_1
 from shared.schemas import MobileEvent
+from services.risk_scorer.main import RiskScorer
 
 
 def test_high_amount_risk():
@@ -12,7 +12,8 @@ def test_high_amount_risk():
         device_id="dev_1",
         location="0,0",
     )
-    score, rationale = analyze_risk_stage_1(event)
+    # Chiamata tramite la classe RiskScorer
+    score, rationale = RiskScorer.analyze_risk_stage_1(event)
     assert score == 95
     assert "CRITICAL" in rationale
 
@@ -26,28 +27,31 @@ def test_low_amount_risk():
         device_id="dev_1",
         location="0,0",
     )
-    score, _ = analyze_risk_stage_1(event)
+    # Chiamata tramite la classe RiskScorer
+    score, _ = RiskScorer.analyze_risk_stage_1(event)
     assert score == 0
 
 
 def test_login_base_risk():
-    """Test that logins have a baseline risk score."""
-    event = MobileEvent(
+    """Test that logins have a baseline risk score and logout does not."""
+    # Test Login
+    login_event = MobileEvent(
         user_id="user_1",
         event_type="login",
         amount=0.0,
         device_id="dev_1",
         location="0,0",
     )
-    score, _ = analyze_risk_stage_1(event)
+    score, _ = RiskScorer.analyze_risk_stage_1(login_event)
     assert score == 10
 
-    event = MobileEvent(
+    # Test Logout
+    logout_event = MobileEvent(
         user_id="user_1",
         event_type="logout",
         amount=0.0,
         device_id="dev_1",
         location="0,0",
     )
-    score, _ = analyze_risk_stage_1(event)
+    score, _ = RiskScorer.analyze_risk_stage_1(logout_event)
     assert score == 0
