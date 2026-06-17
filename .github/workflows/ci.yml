@@ -47,10 +47,11 @@ jobs:
       - name: Run Pytest
         env:
           PYTHONPATH: .
-          # dummy variables
-          POSTGRES_DB: test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
+          POSTGRES_DB: ci_db
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci_password
           RABBITMQ_USER: guest
           RABBITMQ_PASS: guest
-        run: pytest tests/test_risk_scorer.py
+        run: |
+          # Run all tests in the folder
+          pytest tests/
