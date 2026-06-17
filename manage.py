@@ -39,18 +39,18 @@ class PipelineManager:
     def up(self) -> None:
         """Start services in detached mode."""
         self._ensure_env()
-        print("--- Starting Pipeline Services ---")
+        print(" Starting Pipeline Services ")
         self._execute("docker-compose up -d")
 
     def down(self) -> None:
         """Stop and remove containers."""
-        print("--- Stopping Services ---")
+        print(" Stopping Services ")
         self._execute("docker-compose down")
 
     def build(self) -> None:
         """Rebuild service images without using cache."""
         self._ensure_env()
-        print("--- Rebuilding Images (No-Cache) ---")
+        print(" Rebuilding Images (No-Cache) ")
         self._execute("docker-compose build --no-cache")
 
     def logs(self) -> None:
@@ -59,12 +59,12 @@ class PipelineManager:
 
     def restart(self) -> None:
         """Restart all services."""
-        print("--- Restarting Services ---")
+        print(" Restarting Services ")
         self._execute("docker-compose restart")
 
     def clean(self) -> None:
         """Full cleanup: remove containers, volumes, and orphans."""
-        print("--- Performing Deep System Clean ---")
+        print(" Performing Deep System Clean ")
         self._execute("docker-compose down --volumes --remove-orphans")
 
     def run(self, action: str) -> None:

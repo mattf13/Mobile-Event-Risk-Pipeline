@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger("risk_scorer")
 
 
-# --- Configuration & Environment Validation ---
+#  Configuration & Environment Validation 
 def get_env_mandatory(key: str) -> str:
     """Ensures mandatory environment variables are present."""
     value = os.getenv(key)
@@ -39,7 +39,7 @@ RABBITMQ_USER = get_env_mandatory("RABBITMQ_USER")
 RABBITMQ_PASS = get_env_mandatory("RABBITMQ_PASS")
 QUEUE_NAME = "mobile_events"
 
-# --- Infrastructure Setup ---
+#  Infrastructure Setup 
 
 # Initialize Global Database Pool for thread-safety and performance
 try:
@@ -81,7 +81,7 @@ def init_db_schema():
     exit(1)
 
 
-# --- Risk Analysis Logic ---
+#  Risk Analysis Logic 
 
 
 def analyze_risk_stage_1(event: MobileEvent) -> tuple[int, str]:
@@ -105,7 +105,7 @@ def analyze_risk_stage_1(event: MobileEvent) -> tuple[int, str]:
     return score, rationale
 
 
-# --- Message Consumption ---
+#  Message Consumption 
 
 
 def on_message_received(ch, method, properties, body):
