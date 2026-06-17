@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 from unittest.mock import MagicMock
 from services.risk_scorer.main import RiskScorer

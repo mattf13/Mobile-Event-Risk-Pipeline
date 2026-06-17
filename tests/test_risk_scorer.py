@@ -1,4 +1,4 @@
-import pytest
+from __future__ import annotations
 from shared.schemas import MobileEvent
 from services.risk_scorer.main import RiskScorer
 
