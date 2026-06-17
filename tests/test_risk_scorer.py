@@ -12,7 +12,7 @@ def test_high_amount_risk():
         device_id="dev_1",
         location="0,0",
     )
-    # Chiamata tramite la classe RiskScorer
+    # call RiskScorer class
     score, rationale = RiskScorer.analyze_risk_stage_1(event)
     assert score == 95
     assert "CRITICAL" in rationale
@@ -27,7 +27,7 @@ def test_low_amount_risk():
         device_id="dev_1",
         location="0,0",
     )
-    # Chiamata tramite la classe RiskScorer
+    # call RiskScorer class
     score, _ = RiskScorer.analyze_risk_stage_1(event)
     assert score == 0
 

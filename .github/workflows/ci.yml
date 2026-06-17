@@ -23,7 +23,6 @@ jobs:
       RABBITMQ_HOST: localhost
       POSTGRES_HOST: localhost
 
-    # ... (parte iniziale uguale)
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -42,13 +41,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pytest pydantic pika requests psycopg2-binary
-          # Installiamo i requirements dei servizi
+          # Install services requirements
           find services -name "requirements.txt" -exec pip install -r {} \;
 
       - name: Run Pytest
         env:
           PYTHONPATH: .
-          # Variabili dummy per evitare errori di get_env_mandatory
+          # dummy variables
           POSTGRES_DB: test
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
