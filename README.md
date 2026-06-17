@@ -1,16 +1,24 @@
 # Mobile Event Risk Pipeline
 
-**A high-performance microservices pipeline for real-time mobile event analytics and LLM-based fraud detection.**
+High-performance microservices pipeline for real-time mobile event analytics and LLM-based anomaly detection.
 
 ## Overview
-This project simulates a fintech mobile environment where millions of user events (transactions, logins, pings) are ingested, processed, and scored for risk in real-time. It uses a hybrid approach: a high-speed rule-based engine for immediate filtering and an LLM-based analyzer for complex pattern recognition.
-
-### Key Features
-- **Event-Driven Architecture**: Decoupled microservices using RabbitMQ.
-- **Hybrid Risk Scoring**: Rule-based (FastAPI) + AI-powered (Claude/OpenAI) anomaly detection.
-- **Production-Ready**: Fully containerized with Docker, includes CI/CD pipelines and unit testing.
-- **Data Integrity**: Enforced schemas and persistence in PostgreSQL.
+This system processes a high-volume stream of mobile user events (logins, transactions, location updates) to detect risk and fraud. It employs a two-stage scoring mechanism: a deterministic rule-based engine for high-speed filtering and an LLM-based analyzer for complex behavioral pattern recognition.
 
 ## Architecture
-```text
-[Event Generator] -> [Ingestion API] -> [RabbitMQ] -> [Risk Scorer (Rule + LLM)] -> [Postgres]
+The system consists of the following decoupled components:
+- Event Generator: Simulates mobile application traffic and anomalous patterns.
+- Ingestion API: RESTful endpoint for event entry and validation.
+- Message Broker: RabbitMQ for asynchronous event distribution.
+- Risk Scorer: Hybrid service combining logic-based filters and LLM analysis.
+- Data Store: PostgreSQL for persistent storage of events and risk metadata.
+
+## Technical Stack
+- Language: Python 3.11+
+- Framework: FastAPI
+- Messaging: RabbitMQ
+- Database: PostgreSQL
+- Infrastructure: Docker, Docker Compose
+- CI/CD: GitHub Actions
+- Testing: Pytest
+

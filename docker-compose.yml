@@ -1,0 +1,13 @@
+services:
+  ingestion-api:
+    build:
+      context: .
+      dockerfile: services/ingestion_api/Dockerfile
+    ports:
+      - "8000:8000"
+    networks:
+      - pipeline-network
+
+networks:
+  pipeline-network:
+    driver: bridge
