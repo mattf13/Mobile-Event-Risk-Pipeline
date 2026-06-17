@@ -22,3 +22,13 @@ The system consists of the following decoupled components:
 - CI/CD: GitHub Actions
 - Testing: Pytest
 
+## Setup and Configuration
+The system uses environment variables for configuration. A `.env` file must be created in the root directory. 
+Example configuration:
+- RABBITMQ_USER: Username for the message broker.
+- RABBITMQ_PASS: Password for the message broker.
+- INGESTION_API_URL: Endpoint for the event generator.
+
+## How to Run
+python manage.py up
+python manage.py logs
