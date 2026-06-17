@@ -1,6 +1,6 @@
 import os
+import sys
 import time
-import json
 import logging
 import pika
 import psycopg2
@@ -46,7 +46,7 @@ class RiskScorer:
             logger.info("Database pool established.")
         except Exception as e:
             logger.critical("Failed to start DB pool: %s", e)
-            exit(1)
+            sys.exit(1)
 
         # Initialize Schema with retry logic
         self._init_db_schema()
@@ -78,7 +78,7 @@ class RiskScorer:
                 if conn:
                     self.db_pool.putconn(conn)
                 time.sleep(5)
-        exit(1)
+        sys.exit(1)
 
     @staticmethod
     def analyze_risk_stage_1(event: MobileEvent) -> tuple[int, str]:

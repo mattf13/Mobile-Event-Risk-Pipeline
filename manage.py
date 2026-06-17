@@ -79,12 +79,9 @@ class PipelineManager:
 
     def print_help(self) -> None:
         print("\nMobile Event Risk Pipeline Manager")
-        print("Usage: python manage.py [command]")
-        print("\nAvailable Commands:")
-        for cmd in self.commands:
-            # Uses docstrings of methods as command descriptions
-            doc = self.commands[cmd].__doc__
-            print(f"  {cmd:<10} {doc}")
+        for name, method in self.commands.items():  
+            doc = method.__doc__
+            print(f"  {name:<10} {doc}")
 
 
 if __name__ == "__main__":

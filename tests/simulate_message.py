@@ -1,11 +1,11 @@
 import json
 from unittest.mock import MagicMock
-from services.risk_scorer.main import on_message_received
-
+from services.risk_scorer.main import RiskScorer
 
 def simulate_event():
     """Simulates a call to the consumer callback."""
     # Mocking RabbitMQ channel and method objects
+    scorer = RiskScorer()
     mock_ch = MagicMock()
     mock_method = MagicMock()
     mock_method.delivery_tag = 1
@@ -22,12 +22,12 @@ def simulate_event():
     ).encode("utf-8")
 
     print("Simulating valid message processing...")
-    on_message_received(mock_ch, mock_method, None, valid_payload)
+    scorer.on_message_received(mock_ch, mock_method, None, valid_payload)
 
     # Invalid JSON payload (Security Test)
     invalid_payload = b"invalid json data"
     print("\nSimulating malicious/invalid message processing...")
-    on_message_received(mock_ch, mock_method, None, invalid_payload)
+    scorer.on_message_received(mock_ch, mock_method, None, invalid_payload)
 
 
 if __name__ == "__main__":

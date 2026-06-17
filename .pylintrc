@@ -1,14 +1,15 @@
 [MASTER]
 ignore=shared
+ignored-modules=pika,psycopg2,pydantic,fastapi,uvicorn,requests,pytest
 
 [MESSAGES CONTROL]
-# Disable checks that are too pedantic for this type of microservice
 disable=
     C0114, # missing-module-docstring
     C0115, # missing-class-docstring
     C0116, # missing-function-docstring
     R0903, # too-few-public-methods
-    W0703  # broad-except (Standard for top-level consumers)
+    W0703, # broad-except
+    W0718  # standard-exception (Python 3.11+)
 
 [FORMAT]
 max-line-length=100

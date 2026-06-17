@@ -1,7 +1,7 @@
-import pika
-import json
 import os
 import time
+import pika
+import uvicorn
 from fastapi import FastAPI, status, HTTPException
 from shared.schemas import MobileEvent
 
@@ -62,8 +62,7 @@ async def ingest_event(event: MobileEvent):
         conn.close()
         return {"message": "Event accepted", "event_id": event.event_id}
     except Exception as e:
-        print(f"Failed to publish: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 if __name__ == "__main__":
