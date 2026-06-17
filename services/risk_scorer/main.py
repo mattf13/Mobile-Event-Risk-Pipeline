@@ -4,7 +4,7 @@ import time
 import logging
 import pika
 import psycopg2
-from psycopg2 import pool
+import psycopg2.pool
 from pydantic import ValidationError
 from shared.schemas import MobileEvent
 

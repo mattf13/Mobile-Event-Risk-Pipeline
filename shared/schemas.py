@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from pydantic import BaseModel, Field 
+from pydantic import BaseModel, Field
 
 class MobileEvent(BaseModel):
     # Usiamo una lambda per generare un nuovo UUID ogni volta

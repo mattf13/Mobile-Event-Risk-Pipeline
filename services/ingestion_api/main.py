@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import pika
 import uvicorn
@@ -66,6 +67,4 @@ async def ingest_event(event: MobileEvent):
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

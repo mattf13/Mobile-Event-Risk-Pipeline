@@ -1,9 +1,9 @@
+import os
 import time
 import random
-import requests
 import uuid
-import os
 from datetime import datetime, timezone
+import requests
 
 # Load configuration from environment
 API_URL = os.getenv("INGESTION_API_URL", "http://ingestion_api:8000/events")

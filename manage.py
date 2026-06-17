@@ -79,7 +79,7 @@ class PipelineManager:
 
     def print_help(self) -> None:
         print("\nMobile Event Risk Pipeline Manager")
-        for name, method in self.commands.items():  
+        for name, method in self.commands.items():
             doc = method.__doc__
             print(f"  {name:<10} {doc}")
 
