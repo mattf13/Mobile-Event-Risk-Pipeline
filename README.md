@@ -1,6 +1,6 @@
 # Mobile Event Risk Pipeline
 
-High-performance microservices pipeline for real-time mobile event analytics and LLM-based anomaly detection.
+Microservices pipeline for real-time mobile event analytics and LLM-based anomaly detection.
 
 ## Overview
 This system processes a high-volume stream of mobile user events (logins, transactions, location updates) to detect risk and fraud. It employs a two-stage scoring mechanism: a deterministic rule-based engine for high-speed filtering and an LLM-based analyzer for complex behavioral pattern recognition.
