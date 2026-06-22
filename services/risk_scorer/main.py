@@ -147,7 +147,8 @@ class RiskScorer:
             db_conn = self.db_pool.getconn()
             with db_conn.cursor() as cur:
                 cur.execute(
-                    """INSERT INTO risk_analysis (event_id, user_id, event_type, score, label, rationale) 
+                    """INSERT INTO risk_analysis 
+                        (event_id, user_id, event_type, score, label, rationale) 
                        VALUES (%s, %s, %s, %s, %s, %s)""",
                     (
                         event.event_id,

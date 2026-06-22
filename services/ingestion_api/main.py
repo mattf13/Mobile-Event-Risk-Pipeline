@@ -1,10 +1,10 @@
+"""Ingestion API service for the Mobile Event Risk Pipeline."""
+
 from __future__ import annotations
 import os
-import sys
 import logging
 from contextlib import asynccontextmanager
 import pika
-import uvicorn
 from fastapi import FastAPI, status, HTTPException
 from shared.schemas import MobileEvent
 
@@ -13,7 +13,7 @@ logger = logging.getLogger("ingestion_api")
 
 
 class RabbitMQManager:
-    """Manages a persistent RabbitMQ connection and channel."""
+    """Manages persistent RabbitMQ connections."""
 
     def __init__(self):
         self.connection = None
@@ -23,6 +23,7 @@ class RabbitMQManager:
         self.password = os.getenv("RABBITMQ_PASS", "guest")
 
     def connect(self):
+        """Establish the connection and channel."""
         credentials = pika.PlainCredentials(self.user, self.password)
         parameters = pika.ConnectionParameters(host=self.host, credentials=credentials)
         self.connection = pika.BlockingConnection(parameters)
@@ -31,6 +32,7 @@ class RabbitMQManager:
         logger.info("Persistent RabbitMQ connection established.")
 
     def publish(self, message: str):
+        """Publish a message using the persistent channel."""
         if not self.channel or self.channel.is_closed:
             self.connect()
         self.channel.basic_publish(
@@ -41,6 +43,7 @@ class RabbitMQManager:
         )
 
     def close(self):
+        """Safely close the connection."""
         if self.connection and not self.connection.is_closed:
             self.connection.close()
 
@@ -49,12 +52,14 @@ rmq = RabbitMQManager()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Manages app startup and shutdown events."""
+async def lifespan(_app: FastAPI):  # Prefix with _ to avoid redefined-outer-name
+    """Lifecycle manager for the FastAPI application."""
     try:
         rmq.connect()
-    except Exception as e:
-        logger.error(f"Failed to connect to RabbitMQ at startup: {e}")
+    except pika.exceptions.AMQPError as e:
+        logger.error(
+            "Failed to connect to RabbitMQ at startup: %s", e
+        )  # Use % formatting
     yield
     rmq.close()
 
@@ -64,7 +69,7 @@ app = FastAPI(title="Ingestion API", lifespan=lifespan)
 
 @app.get("/health")
 def health_check():
-    """Checks if the broker is reachable."""
+    """Service health status endpoint."""
     if rmq.connection and rmq.connection.is_open:
         return {"status": "healthy", "broker": "connected"}
     raise HTTPException(status_code=503, detail="Broker disconnected")
@@ -72,12 +77,11 @@ def health_check():
 
 @app.post("/events", status_code=status.HTTP_201_CREATED)
 async def ingest_event(event: MobileEvent):
+    """Receive and queue a mobile event."""
     try:
-        # Non-blocking JSON serialization
         message = event.model_dump_json()
-        # Fast publish using persistent channel
         rmq.publish(message)
         return {"event_id": event.event_id, "status": "accepted"}
     except pika.exceptions.AMQPError as e:
-        logger.error(f"Broker error: {e}")
+        logger.error("Broker error: %s", e)  # Use % formatting
         raise HTTPException(status_code=503, detail="Message broker unavailable") from e

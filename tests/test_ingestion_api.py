@@ -3,7 +3,6 @@
 from __future__ import annotations
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-import pytest
 
 # We mock RabbitMQ before importing the app to avoid connection attempts during test setup
 with patch("pika.BlockingConnection"):
