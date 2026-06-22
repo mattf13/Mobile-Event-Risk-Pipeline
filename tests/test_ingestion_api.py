@@ -1,7 +1,7 @@
 """Unit tests for the Ingestion API endpoints."""
 
 from __future__ import annotations
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 # We mock RabbitMQ before importing the app to avoid connection attempts during test setup
