@@ -1,7 +1,6 @@
 """Unit tests for the RiskScorer logic and AI integration."""
 
 from __future__ import annotations
-import json
 from unittest.mock import patch, MagicMock
 from shared.schemas import MobileEvent
 from services.risk_scorer.main import RiskScorer

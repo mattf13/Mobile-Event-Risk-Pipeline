@@ -169,13 +169,15 @@ class RiskScorer:
                 db_conn = self.db_pool.getconn()
                 with db_conn.cursor() as cur:
                     cur.execute(
-                        """INSERT INTO risk_analysis (event_id, user_id, event_type, score, label, rationale) 
+                        """INSERT INTO risk_analysis 
+                           (event_id, user_id, event_type, score, label, rationale) 
                            VALUES (%s, %s, %s, %s, %s, %s)""",
                         (event.event_id, event.user_id, event.event_type, score, label, rationale)
                     )
                     db_conn.commit()
             _ch.basic_ack(delivery_tag=method.delivery_tag)
-            logger.info("Processed: %s | Final Score: %s", event.event_id, score)
+            logger.info("Processed: %s | Final Score: %s",
+                        event.event_id, score)
         except ValidationError as ve:
             logger.error("Security Alert: Malformed message discarded. Error: %s", ve)
             _ch.basic_ack(delivery_tag=method.delivery_tag)
@@ -206,6 +208,7 @@ if __name__ == "__main__":
     scorer = RiskScorer()
     try:
         scorer.start()
+
     except KeyboardInterrupt:
         logger.info("Service stopped.")
         sys.exit(0)
