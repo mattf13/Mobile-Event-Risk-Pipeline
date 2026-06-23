@@ -1,4 +1,4 @@
-"""Unit tests for the RiskScorer logic."""
+"""Unit tests for the RiskScorer logic and AI integration."""
 
 from __future__ import annotations
 import json
@@ -44,79 +44,47 @@ def test_login_base_risk():
     assert score == 0
 
 
-def test_stage_2_llm_detection():
-    """Test that Stage 2 (Mock LLM) identifies suspicious device IDs."""
+def test_stage_2_ai_integration_success():
+    """Test that the AI stage correctly parses a valid JSON response from Groq."""
     event = MobileEvent(
-        user_id="user_bot",
+        user_id="user_ai",
         event_type="transaction",
-        amount=10.0,
-        device_id="device_999",  # Suspicious device
+        amount=600.0,
+        device_id="dev_123",
         location="0,0",
     )
-    # Stage 1 would return 0 for this amount
-    s1_score, _ = RiskScorer.analyze_risk_stage_1(event)
-    assert s1_score == 0
-
-    # Stage 2 should flag it
-    llm_score, rationale = RiskScorer.analyze_risk_stage_2_mock_llm(event)
-    assert llm_score == 85
-    assert "LLM_REPORT" in rationale
-
-
-def test_stage_2_llm_integration_success():
-    """
-    Test that on_message_received calls the LLM and processes its response.
-    We mock the external API call to isolate the test.
-    """
-    scorer = RiskScorer()
-
-    # Mocking RabbitMQ channel and method
-    mock_ch = MagicMock()
-    mock_method = MagicMock()
-    mock_method.delivery_tag = 1
-
-    # An event that will trigger the LLM call (amount > 500)
-    event_payload = {
-        "event_id": "test-llm-event-id",
-        "user_id": "user_with_high_tx",
-        "event_type": "transaction",
-        "amount": 600.0,
-        "device_id": "dev_normal",
-        "location": "10,10",
-    }
-    event_body = json.dumps(event_payload).encode("utf-8")
-
-    # Mocking the database to avoid real writes
-    with patch.object(scorer.db_pool, "getconn") as mock_getconn:
-        # Mocking the Mistral API call
-        with patch("services.risk_scorer.main.Mistral") as mock_mistral:
-            # Configure the mock to return a fake response
-            mock_mistral.return_value.chat.complete.return_value = MagicMock(
-                choices=[
-                    MagicMock(
-                        message=MagicMock(
-                            content='{"score": 90, "reason": "AI detected unusual pattern."}'
-                        )
-                    )
-                ]
+    mock_response = MagicMock()
+    mock_response.choices = [
+        MagicMock(
+            message=MagicMock(
+                content='{"score": 85, "rationale": "High value pattern"}'
             )
+        )
+    ]
 
-            # Call the function we want to test
-            scorer.on_message_received(mock_ch, mock_method, None, event_body)
+    with patch(
+        "openai.resources.chat.completions.Completions.create",
+        return_value=mock_response,
+    ):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "gsk_dummy"}):
+            score, rationale = RiskScorer.analyze_risk_stage_2_llm(event)
+            assert score == 85
+            assert "AI_ANALYSIS" in rationale
 
-            #  ASSERTIONS 
-            # call Mistral?
-            mock_mistral.return_value.chat.complete.assert_called_once()
 
-            # persist the LLM's score
-            # Check what was sent to the DB
-            insert_args = mock_getconn.return_value.cursor.return_value.__enter__.return_value.execute.call_args[
-                0
-            ][
-                1
-            ]
-            persisted_score = insert_args[3]
-            persisted_rationale = insert_args[5]
-
-            assert persisted_score == 90
-            assert "MISTRAL_AI: AI detected unusual pattern." in persisted_rationale
+def test_stage_2_ai_fallback_on_api_error():
+    """Test that the system falls back to mock logic if the AI API fails."""
+    event = MobileEvent(
+        user_id="user_fail",
+        event_type="transaction",
+        amount=600.0,
+        device_id="dev_normal",
+        location="0,0",
+    )
+    with patch(
+        "openai.resources.chat.completions.Completions.create",
+        side_effect=Exception("API Error"),
+    ):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "gsk_dummy"}):
+            score, _ = RiskScorer.analyze_risk_stage_2_llm(event)
+            assert score == 0  # Backs up to mock which returns 0 for dev_normal

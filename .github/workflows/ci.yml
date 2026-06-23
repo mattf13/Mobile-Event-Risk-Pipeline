@@ -40,7 +40,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pydantic pika requests psycopg2-binary
+          pip install pytest psycopg2-binary
           # Install services requirements
           find services -name "requirements.txt" -exec pip install -r {} \;
 
@@ -52,6 +52,7 @@ jobs:
           POSTGRES_PASSWORD: ci_password
           RABBITMQ_USER: guest
           RABBITMQ_PASS: guest
+          GROQ_API_KEY: dummy_for_ci
         run: |
           # Run all tests in the folder
           pytest tests/
