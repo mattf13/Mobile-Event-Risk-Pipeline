@@ -1,18 +1,16 @@
-# Python bytecode
+
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Environment variables (Crucial for security)
 .env
 
-# Virtual environments
 .venv/
 env/
 venv/
 ENV/
 
-# Docker logs
+
 *.log
 
 # IDEs
