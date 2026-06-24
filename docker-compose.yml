@@ -3,7 +3,6 @@ services:
     image: postgres:15-alpine
     env_file: .env
     volumes:
-      # Mantieni SOLO questa riga per Postgres
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
