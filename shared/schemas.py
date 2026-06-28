@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class MobileEvent(BaseModel):
@@ -23,7 +23,15 @@ class RiskScore(BaseModel):
     """Schema for the results of the risk analysis process."""
 
     event_id: str
-    score: int  # Range: 0-100
+    score: int = Field(ge=0, le=100)  # Range: 0-100
     label: str  # GREEN, YELLOW, RED
     rationale: str
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("score")
+    def score_is_valid(cls, score: int) -> int:
+        """Validates that the score is between 0 and 100."""
+        try:
+            return max(0, min(100, score))
+        except (ValueError, TypeError):
+            return 0

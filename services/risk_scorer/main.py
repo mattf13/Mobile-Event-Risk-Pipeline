@@ -9,6 +9,7 @@ import pika
 import psycopg2
 import psycopg2.pool
 from pydantic import ValidationError
+from openai import OpenAI
 from shared.schemas import MobileEvent
 
 # Configure professional logging
@@ -111,23 +112,32 @@ class RiskScorer:
 
     @staticmethod
     def analyze_risk_stage_2_llm(event: MobileEvent) -> tuple[int, str]:
-        """Stage 2: AI analysis using Groq with exponential backoff and strict JSON."""
+        """
+        Stage 2: AI Behavioral analysis using Groq (Llama 3.1).
+        Features exponential backoff, defensive score clamping, and strict JSON output.
+        """
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            logger.info("GROQ_API_KEY missing. Using mock fallback.")
+            logger.info("GROQ_API_KEY missing. Falling back to internal mock logic.")
             return RiskScorer.analyze_risk_stage_2_mock_llm(event)
 
+        # Exponential Backoff Configuration
         max_retries = 3
         base_delay = 1.0
+
         try:
-            from openai import OpenAI  # pylint: disable=import-outside-toplevel
-            client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key)
+            client = OpenAI(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=api_key
+            )
+
             prompt = (
                 "You are a fraud risk analyst. Analyze this mobile event and "
                 "respond ONLY with valid JSON:\n"
                 "{\"score\": <0-100>, \"rationale\": \"<one sentence>\"}\n\n"
                 f"Event: {event.model_dump_json()}"
             )
+
             for attempt in range(max_retries):
                 try:
                     response = client.chat.completions.create(
@@ -136,20 +146,32 @@ class RiskScorer:
                         response_format={"type": "json_object"},
                         timeout=5.0
                     )
+
                     data = json.loads(response.choices[0].message.content)
-                    return int(data.get("score", 0)), f"AI_ANALYSIS: {data.get('rationale')}"
+                    # parse and clamp the score to 0-100 range
+                    # This protects the system from LLM hallucinations (e.g., score: 105 or -1)
+                    raw_score = data.get("score", 0)
+                    try:
+                        score = max(0, min(100, int(raw_score)))
+                    except (ValueError, TypeError):
+                        score = 0
+                    rationale = str(data.get("rationale", "Inconclusive analysis."))
+                    return score, f"AI_ANALYSIS: {rationale}"
+
                 except Exception as exc:  # pylint: disable=broad-except
                     if attempt < max_retries - 1:
                         delay = base_delay * (2 ** attempt)
                         logger.warning("AI retry %s after %s due to error", attempt + 1, delay)
                         time.sleep(delay)
                     else:
-                        logger.error("AI API failed after retries. Fallback triggered: %s", exc)
+                        logger.error("AI API failed after %s retries: %s", max_retries, exc)
                         return RiskScorer.analyze_risk_stage_2_mock_llm(event)
+
         except (ImportError, json.JSONDecodeError, KeyError) as err:
-            logger.error("AI system error: %s", err)
+            logger.error("AI system error during integration: %s", err)
             return RiskScorer.analyze_risk_stage_2_mock_llm(event)
-        return 0, ""
+
+        return RiskScorer.analyze_risk_stage_2_mock_llm(event)
 
     def on_message_received(self, _ch, method, _properties, body):
         """Consumer callback triggered upon receiving a message from RabbitMQ."""

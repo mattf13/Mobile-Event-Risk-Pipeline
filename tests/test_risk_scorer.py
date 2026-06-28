@@ -87,3 +87,21 @@ def test_stage_2_ai_fallback_on_api_error():
         with patch.dict("os.environ", {"GROQ_API_KEY": "gsk_dummy"}):
             score, _ = RiskScorer.analyze_risk_stage_2_llm(event)
             assert score == 0  # Backs up to mock which returns 0 for dev_normal
+
+def test_ai_score_clamping():
+    """Test that LLM scores outside 0-100 range are correctly clamped."""
+    # Mock a hallucinating LLM returning 150
+    mock_response = MagicMock()
+    mock_response.choices = [
+        MagicMock(
+            message=MagicMock(content='{"score": 150, "rationale": "Extreme risk"}')
+        )
+    ]
+
+    with patch(
+        "openai.resources.chat.completions.Completions.create",
+        return_value=mock_response,
+    ):
+        with patch.dict("os.environ", {"GROQ_API_KEY": "dummy"}):
+            score, _ = RiskScorer.analyze_risk_stage_2_llm(MagicMock(spec=MobileEvent))
+            assert score == 100  # Must be clamped to 100
