@@ -7,52 +7,62 @@ on:
     branches: [ main, master ]
 
 jobs:
-  # independent job
-  test-logic:
-    name: Run Unit Tests and Linting
+  # JOB 1: LINTING
+  lint:
+    name: Code Quality (Pylint)
     runs-on: ubuntu-latest
-
-    # env variables
-    env:
-      PYTHONPATH: .
-      POSTGRES_DB: test_db
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
-      RABBITMQ_USER: guest
-      RABBITMQ_PASS: guest
-      RABBITMQ_HOST: localhost
-      POSTGRES_HOST: localhost
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libpq-dev gcc
-
-      - name: Install Python Dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest psycopg2-binary
-          # Install services requirements
+          pip install pylint pytest pydantic pika requests psycopg2-binary httpx openai
           find services -name "requirements.txt" -exec pip install -r {} \;
 
-      - name: Run Pytest
-        env:
-          PYTHONPATH: .
-          POSTGRES_DB: ci_db
-          POSTGRES_USER: ci_user
-          POSTGRES_PASSWORD: ci_password
-          RABBITMQ_USER: guest
-          RABBITMQ_PASS: guest
-          GROQ_API_KEY: dummy_for_ci
+      - name: Run Pylint
         run: |
-          # Run all tests in the folder
-          pytest tests/
+          pylint $(git ls-files '*.py') --rcfile=.pylintrc
+
+  # JOB 2: TESTING
+  test:
+    name: Automated Tests (Pytest)
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    
+    env:
+      PYTHONPATH: .
+      POSTGRES_DB: ci_test
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      GROQ_API_KEY: dummy_key
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pydantic pika requests psycopg2-binary httpx openai
+          find services -name "requirements.txt" -exec pip install -r {} \;
+
+      - name: Execute Pytest Suite
+        run: |
+          python -m pytest tests/

@@ -29,6 +29,7 @@ class RiskScore(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @field_validator("score")
+    @classmethod
     def score_is_valid(cls, score: int) -> int:
         """Validates that the score is between 0 and 100."""
         try:
